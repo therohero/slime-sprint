@@ -321,7 +321,7 @@
 
                 if (Math.random() < 0.5 && runner % (power === "lila" ? 150 : 75) === 0) {
                     hindernisse.push({
-                        y: GAME_HEIGHT - (power === "red" ? 250 : 300) - (isMobile ? 45 : 0),
+                        y: GAME_HEIGHT - (power === "red" ? (isMobile ? 250 : 270) : 300) - (isMobile ? 45 : 0),
                         x: GAME_WIDTH,
                         width: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
                         height: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
@@ -333,7 +333,7 @@
                     const bucketType = new Array("red", "blue", "lila")[Math.floor(Math.random() * 3)];
                     buckets.push({
                         x: GAME_WIDTH,
-                        y: GAME_HEIGHT - (power === "red" ? 250 : 300)  - (isMobile ? 45 : 0),
+                        y: GAME_HEIGHT - (power === "red" ? (isMobile ? 250 : 270) : 300)  - (isMobile ? 45 : 0),
                         width: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
                         height: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
                         type: bucketType
