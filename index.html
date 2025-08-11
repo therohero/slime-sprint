@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Slime Sprint</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: black;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 10;
+        }
+        #gameOverScreen {
+            display: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 20px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="startScreen">
+        <h1>Slime Sprint</h1>
+        <p>Drücke Leertaste oder tippe zum Springen!</p>
+        <button id="startButton">Spiel starten</button>
+    </div>
+
+    <div id="gameOverScreen">
+        <h1>Game Over!</h1>
+        <p id="scoreText">Punkte: 0</p>
+        <button id="restartButton">Nochmal spielen</button>
+    </div>
+
+    <button id="fullscreenButton" style="position: fixed; bottom: 20px; right: 20px; padding: 10px 15px; background-color: rgba(0,0,0,0.5); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 1000;">Fullscreen</button>
+
+    <script>
+        const $ = id => document.getElementById(id);
+        
+        const GAME_WIDTH = 1920;
+        const GAME_HEIGHT = 1080;
+
+        const canvas = $("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        const startScreen = $("startScreen");
+        const gameOverScreen = $("gameOverScreen");
+        const startButton = $("startButton");
+        const restartButton = $("restartButton");
+        const scoreText = $("scoreText");
+
+        const OVERGROUND = GAME_HEIGHT * 0.29296875 - 15;
+        let ground = GAME_HEIGHT - OVERGROUND;
+
+        const slime = {
+            x: 50,
+            y: GAME_HEIGHT - 240,
+            width: 60,
+            height: 60,
+            speed: 5,
+            velocity: 0,
+            gravity: 0.3,
+            jumpPower: -8,
+            isJumping: false,
+            rotation: 0
+        };
+
+        /*let slimeImgs = {
+            red: new Image(),
+            blue: new Image(),
+        };
+        slimeImgs.red.src = "assets/slimes/red.png";
+        slimeImgs.blue.src = "assets/slimes/blue.png";*/
+        
+        let runner = 0;
+        let points = 0;
+        let hindernisse = [];
+        let gameRunning = false;
+        let slimeImage = new Image();
+        slimeImage.src = "assets/slime.png";
+        let hindernisImg = new Image();
+        hindernisImg.src = "assets/hindernis.png";
+        let backgroundImg = new Image();
+        backgroundImg.src= "assets/background.png";
+        let backgroundX = 0;
+
+        const fullscreenButton = $("fullscreenButton");
+        fullscreenButton.addEventListener("click", openFullscreen);
+
+        document.addEventListener("fullscreenchange", () => {
+            fullscreenButton.style.display = document.fullscreenElement ? "none" : "block";
+        });
+        document.addEventListener("webkitfullscreenchange", () => {
+            fullscreenButton.style.display = document.webkitFullscreenElement ? "none" : "block";
+        });
+
+        function checkCollision() {
+            const slimeCenterX = slime.x + slime.width / 2;
+            const slimeCenterY = slime.y + slime.height / 2;
+            const slimeRadius = slime.width / 2;
+
+            for (let i of hindernisse) {
+                const closestX = Math.max(i.x, Math.min(slimeCenterX, i.x + i.width));
+                const closestY = Math.max(i.y, Math.min(slimeCenterY, i.y + i.height));
+                const distanceX = slimeCenterX - closestX;
+                const distanceY = slimeCenterY - closestY;
+                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                if (distance < slimeRadius) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function openFullscreen() {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.webkitRequestFullscreen) {
+                document.documentElement.webkitRequestFullscreen();
+            }
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            backgroundX -= 4;
+            ctx.drawImage(backgroundImg, backgroundX, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.drawImage(backgroundImg, backgroundX + GAME_WIDTH, 0, GAME_WIDTH, GAME_HEIGHT);
+            if (backgroundX <= -GAME_WIDTH) {
+                backgroundX = 0;
+            }
+
+            ctx.save();
+            ctx.translate(slime.x + slime.width / 2, slime.y + slime.height / 2);
+            slime.rotation += 0.1;
+            ctx.rotate(slime.rotation);
+            ctx.drawImage(slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
+            ctx.restore();
+
+            for (let i of hindernisse) {
+                i.x -= 4;
+                ctx.drawImage(hindernisImg, i.x, i.y, i.width, i.height);
+                i.y = ground;
+            }
+            for (let i = hindernisse.length - 1; i >= 0; i--) {
+                if (hindernisse[i].x + hindernisse[i].width < 0) {
+                    hindernisse.splice(i, 1);
+                    points++;
+                }
+            }
+
+            slime.velocity += slime.gravity;
+            slime.y += slime.velocity;
+
+            if (slime.y > ground) {
+                slime.y = ground;
+                slime.velocity = 0;
+                slime.isJumping = false;
+            }
+
+            if (Math.random() < 0.5 && runner % 75 === 0) {
+                hindernisse.push({
+                    y: GAME_HEIGHT - 100,
+                    x: GAME_WIDTH,
+                    width: 60,
+                    height: 60
+                });
+            }
+
+            if (checkCollision()) {
+                gameOver();
+                return;
+            }
+
+            runner++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            scoreText.textContent = `Punkte: ${points}`;
+            gameOverScreen.style.display = "flex";
+        }
+
+        function startGame() {
+            slime.y = ground;
+            slime.velocity = 0;
+            slime.isJumping = false;
+            slime.rotation = 0;
+            hindernisse = [];
+            points = 0;
+            runner = 0;
+            backgroundX = 0;
+            
+            startScreen.style.display = "none";
+            gameOverScreen.style.display = "none";
+            gameRunning = true;
+            gameLoop();
+        }
+
+        function handleJump() {
+            if (!slime.isJumping && gameRunning) {
+                slime.velocity = slime.jumpPower;
+                slime.isJumping = true;
+            }
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "Space") {
+                handleJump();
+                e.preventDefault();
+            }
+        });
+
+        canvas.addEventListener("touchstart", (e) => {
+            handleJump();
+            e.preventDefault();
+        });
+
+        startButton.addEventListener("click", startGame);
+        restartButton.addEventListener("click", startGame);
+
+        startScreen.style.display = "flex";
+    </script>
+</body>
+</html>
