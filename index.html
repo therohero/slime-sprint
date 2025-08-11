@@ -1,256 +1,432 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Slime Sprint</title>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            background: black;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-        }
-        #startScreen, #gameOverScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-family: Arial, sans-serif;
-            z-index: 10;
-        }
-        #gameOverScreen {
-            display: none;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 20px;
-            margin-top: 20px;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-    <canvas id="gameCanvas"></canvas>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <title>Slime Sprint</title>
+        <style>
+            html, body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background: black;
+                overflow: hidden;
+            }
+            canvas {
+                display: block;
+                width: 100vw;
+                height: 100vh;
+            }
+            #startScreen, #gameOverScreen, #pauseMenu {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0,0,0,0.7);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                color: white;
+                font-family: Arial, sans-serif;
+                z-index: 10;
+            }
+            #gameOverScreen, #pauseMenu {
+                display: none;
+            }
+            button {
+                padding: 10px 20px;
+                font-size: 20px;
+                margin-top: 20px;
+                cursor: pointer;
+            }
+            #scoreDisplay {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                color: white;
+                font-family: Arial, sans-serif;
+                font-size: 24px;
+                z-index: 1001;
+                user-select: none;
+            }
+            #homeButton, #pauseButton {
+                position: fixed;
+                top: 10px;
+                padding: 10px 15px;
+                background-color: rgba(0,0,0,0.5);
+                color: white;
+                border: 1px solid white;
+                border-radius: 5px;
+                cursor: pointer;
+                z-index: 1001;
+                user-select: none;
+            }
+            #homeButton {
+                left: 10px;
+            }
+            #pauseButton {
+                right: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="gameCanvas"></canvas>
 
-    <div id="startScreen">
-        <h1>Slime Sprint</h1>
-        <p>Drücke Leertaste oder tippe zum Springen!</p>
-        <button id="startButton">Spiel starten</button>
-    </div>
+        <div id="startScreen">
+            <h1>Slime Sprint</h1>
+            <p>Drücke Leertaste oder tippe zum Springen!</p>
+            <button id="startButton">Spiel starten</button>
+        </div>
 
-    <div id="gameOverScreen">
-        <h1>Game Over!</h1>
-        <p id="scoreText">Punkte: 0</p>
-        <button id="restartButton">Nochmal spielen</button>
-    </div>
+        <div id="gameOverScreen">
+            <h1>Game Over!</h1>
+            <p id="scoreText">Punkte: 0</p>
+            <button id="restartButton">Nochmal spielen</button>
+        </div>
 
-    <button id="fullscreenButton" style="position: fixed; bottom: 20px; right: 20px; padding: 10px 15px; background-color: rgba(0,0,0,0.5); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 1000;">Fullscreen</button>
+        <div id="pauseMenu">
+            <h1>Pause</h1>
+            <button id="resumeButton">Weiter</button>
+            <button id="pauseHomeButton">Home</button>
+        </div>
 
-    <script>
-        const $ = id => document.getElementById(id);
-        
-        const GAME_WIDTH = 1920;
-        const GAME_HEIGHT = 1080;
+        <button id="fullscreenButton" style="position: fixed; bottom: 20px; right: 20px; padding: 10px 15px; background-color: rgba(0,0,0,0.5); color: white; border: 1px solid white; border-radius: 5px; cursor: pointer; z-index: 1000;">Fullscreen</button>
 
-        const canvas = $("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = GAME_WIDTH;
-        canvas.height = GAME_HEIGHT;
+        <button id="homeButton" style="display:none;">Home</button>
+        <button id="pauseButton" style="display:none;">Pause</button>
 
-        const startScreen = $("startScreen");
-        const gameOverScreen = $("gameOverScreen");
-        const startButton = $("startButton");
-        const restartButton = $("restartButton");
-        const scoreText = $("scoreText");
+        <div id="scoreDisplay" style="display:none;">Punkte: 0</div>
 
-        const OVERGROUND = GAME_HEIGHT * 0.29296875 - 15;
-        let ground = GAME_HEIGHT - OVERGROUND;
+        <script>
+            const $ = id => document.getElementById(id);
+            
+            const GAME_WIDTH = 1920;
+            const GAME_HEIGHT = 1080;
 
-        const slime = {
-            x: 50,
-            y: GAME_HEIGHT - 240,
-            width: 60,
-            height: 60,
-            speed: 5,
-            velocity: 0,
-            gravity: 0.3,
-            jumpPower: -8,
-            isJumping: false,
-            rotation: 0
-        };
+            const canvas = $("gameCanvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
 
-        /*let slimeImgs = {
-            red: new Image(),
-            blue: new Image(),
-        };
-        slimeImgs.red.src = "assets/slimes/red.png";
-        slimeImgs.blue.src = "assets/slimes/blue.png";*/
-        
-        let runner = 0;
-        let points = 0;
-        let hindernisse = [];
-        let gameRunning = false;
-        let slimeImage = new Image();
-        slimeImage.src = "assets/slime.png";
-        let hindernisImg = new Image();
-        hindernisImg.src = "assets/hindernis.png";
-        let backgroundImg = new Image();
-        backgroundImg.src= "assets/background.png";
-        let backgroundX = 0;
+            const startScreen = $("startScreen");
+            const gameOverScreen = $("gameOverScreen");
+            const pauseMenu = $("pauseMenu");
 
-        const fullscreenButton = $("fullscreenButton");
-        fullscreenButton.addEventListener("click", openFullscreen);
+            const startButton = $("startButton");
+            const restartButton = $("restartButton");
+            const resumeButton = $("resumeButton");
+            const pauseHomeButton = $("pauseHomeButton");
 
-        document.addEventListener("fullscreenchange", () => {
-            fullscreenButton.style.display = document.fullscreenElement ? "none" : "block";
-        });
-        document.addEventListener("webkitfullscreenchange", () => {
-            fullscreenButton.style.display = document.webkitFullscreenElement ? "none" : "block";
-        });
+            const scoreText = $("scoreText");
+            const scoreDisplay = $("scoreDisplay");
 
-        function checkCollision() {
-            const slimeCenterX = slime.x + slime.width / 2;
-            const slimeCenterY = slime.y + slime.height / 2;
-            const slimeRadius = slime.width / 2;
+            const homeButton = $("homeButton");
+            const pauseButton = $("pauseButton");
 
-            for (let i of hindernisse) {
-                const closestX = Math.max(i.x, Math.min(slimeCenterX, i.x + i.width));
-                const closestY = Math.max(i.y, Math.min(slimeCenterY, i.y + i.height));
-                const distanceX = slimeCenterX - closestX;
-                const distanceY = slimeCenterY - closestY;
-                const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
-                if (distance < slimeRadius) {
-                    return true;
+            const fullscreenButton = $("fullscreenButton");
+
+            const OVERGROUND = GAME_HEIGHT * 0.29296875 - 15;
+            let ground = GAME_HEIGHT - OVERGROUND;
+
+            const slime = {
+                x: 50,
+                y: GAME_HEIGHT - 240,
+                width: 60,
+                height: 60,
+                speed: 5,
+                velocity: 0,
+                gravity: 0.3,
+                jumpPower: -8,
+                isJumping: false,
+                rotation: 0
+            };
+
+            let slimeImgs = {
+                red: new Image(),
+                blue: new Image(),
+                lila: new Image()
+            };
+            slimeImgs.red.src = "assets/slimes/red.png";
+            slimeImgs.blue.src = "assets/slimes/blue.png";
+            slimeImgs.lila.src = "assets/slimes/lila.png";
+
+            let bucketImgs = {
+                red: new Image(),
+                blue: new Image(),
+                lila: new Image()
+            };
+            bucketImgs.red.src = "assets/buckets/red.png";
+            bucketImgs.blue.src = "assets/buckets/blue.png";
+            bucketImgs.lila.src = "assets/buckets/lila.png";
+            
+            let runner = 0;
+            let points = 0;
+            let hindernisse = [];
+            let buckets = [];
+            let gameRunning = false;
+            let gamePaused = false;
+            let power = undefined;
+
+            let slimeImage = new Image();
+            slimeImage.src = "assets/slime.png";
+            let hindernisImg = new Image();
+            hindernisImg.src = "assets/hindernis.png";
+            let backgroundImg = new Image();
+            backgroundImg.src= "assets/background.png";
+            let backgroundX = 0;
+
+            fullscreenButton.addEventListener("click", openFullscreen);
+
+            document.addEventListener("fullscreenchange", () => {
+                fullscreenButton.style.display = document.fullscreenElement ? "none" : "block";
+            });
+            document.addEventListener("webkitfullscreenchange", () => {
+                fullscreenButton.style.display = document.webkitFullscreenElement ? "none" : "block";
+            });
+
+            homeButton.addEventListener("click", () => {
+                if (gameRunning || gamePaused) {
+                    gameRunning = false;
+                    gamePaused = false;
+                    pauseMenu.style.display = "none";
+                    scoreDisplay.style.display = "none";
+                    homeButton.style.display = "none";
+                    pauseButton.style.display = "none";
+                    startScreen.style.display = "flex";
+                    gameOverScreen.style.display = "none";
+                }
+            });
+
+            pauseButton.addEventListener("click", () => {
+                if (gameRunning) {
+                    pauseGame();
+                }
+            });
+
+            resumeButton.addEventListener("click", () => {
+                resumeGame();
+            });
+
+            pauseHomeButton.addEventListener("click", () => {
+                pauseMenu.style.display = "none";
+                gamePaused = false;
+                gameRunning = false;
+                scoreDisplay.style.display = "none";
+                homeButton.style.display = "none";
+                pauseButton.style.display = "none";
+                startScreen.style.display = "flex";
+                gameOverScreen.style.display = "none";
+            });
+
+            function checkCollision() {
+                const slimeCenterX = slime.x + slime.width / 2;
+                const slimeCenterY = slime.y + slime.height / 2;
+                const slimeRadius = slime.width / 2;
+
+                for (let i of hindernisse) {
+                    const closestX = Math.max(i.x, Math.min(slimeCenterX, i.x + i.width));
+                    const closestY = Math.max(i.y, Math.min(slimeCenterY, i.y + i.height));
+                    const distanceX = slimeCenterX - closestX;
+                    const distanceY = slimeCenterY - closestY;
+                    const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                    if (distance < slimeRadius) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function checkBucketCollision() {
+                const slimeCenterX = slime.x + slime.width / 2;
+                const slimeCenterY = slime.y + slime.height / 2;
+                const slimeRadius = slime.width / 2;
+
+                for (let i of buckets) {
+                    const closestX = Math.max(i.x, Math.min(slimeCenterX, i.x + i.width));
+                    const closestY = Math.max(i.y, Math.min(slimeCenterY, i.y + i.height));
+                    const distanceX = slimeCenterX - closestX;
+                    const distanceY = slimeCenterY - closestY;
+                    const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+                    if (distance < slimeRadius) {
+                        power = i.type;
+                        buckets.splice(buckets.indexOf(i), 1);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function openFullscreen() {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
                 }
             }
-            return false;
-        }
 
-        function openFullscreen() {
-            if (document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen();
-            } else if (document.documentElement.webkitRequestFullscreen) {
-                document.documentElement.webkitRequestFullscreen();
-            }
-        }
+            function gameLoop() {
+                if (!gameRunning || gamePaused) return;
+                
+                ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-        function gameLoop() {
-            if (!gameRunning) return;
-            
-            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-            
-            backgroundX -= 4;
-            ctx.drawImage(backgroundImg, backgroundX, 0, GAME_WIDTH, GAME_HEIGHT);
-            ctx.drawImage(backgroundImg, backgroundX + GAME_WIDTH, 0, GAME_WIDTH, GAME_HEIGHT);
-            if (backgroundX <= -GAME_WIDTH) {
-                backgroundX = 0;
-            }
-
-            ctx.save();
-            ctx.translate(slime.x + slime.width / 2, slime.y + slime.height / 2);
-            slime.rotation += 0.1;
-            ctx.rotate(slime.rotation);
-            ctx.drawImage(slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
-            ctx.restore();
-
-            for (let i of hindernisse) {
-                i.x -= 4;
-                ctx.drawImage(hindernisImg, i.x, i.y, i.width, i.height);
-                i.y = ground;
-            }
-            for (let i = hindernisse.length - 1; i >= 0; i--) {
-                if (hindernisse[i].x + hindernisse[i].width < 0) {
-                    hindernisse.splice(i, 1);
-                    points++;
+                backgroundX -= power === "lila" ? 2 : power === "blue" ? 8 : 4;
+                ctx.drawImage(backgroundImg, backgroundX, 0, GAME_WIDTH, GAME_HEIGHT);
+                ctx.drawImage(backgroundImg, backgroundX + GAME_WIDTH, 0, GAME_WIDTH, GAME_HEIGHT);
+                if (backgroundX <= -GAME_WIDTH) {
+                    backgroundX = 0;
                 }
+
+                ctx.save();
+                ctx.translate(slime.x + slime.width / 2, slime.y + slime.height / 2);
+                slime.rotation += power === "lila" ? 0.05 : 0.1;
+                ctx.rotate(slime.rotation);
+                ctx.drawImage(power ? slimeImgs[power] : slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
+                ctx.restore();
+
+                for (let i of hindernisse) {
+                    i.x -= power === "lila" ? 2 : power === "blue" ? 8 : 4;
+                    ctx.drawImage(hindernisImg, i.x, i.y, i.width, i.height);
+                }
+                for (let i = hindernisse.length - 1; i >= 0; i--) {
+                    if (hindernisse[i].x + hindernisse[i].width < 0) {
+                        hindernisse.splice(i, 1);
+                        points++;
+                        updateScore();
+                    }
+                }
+
+                for (i of buckets) {
+                    ctx.drawImage(bucketImgs[i.type], i.x, i.y, i.width, i.height);
+                    i.x -= power === "lila" ? 2 : power === "blue" ? 8 : 4;
+                }
+
+                slime.velocity += slime.gravity * (power === "lila" ? 0.5 : power === "blue" ? 2 : 1);
+                slime.y += slime.velocity * (power === "lila" ? 0.5 : power === "blue" ? 2 : 1);
+
+                if (slime.y > ground) {
+                    slime.y = ground;
+                    slime.velocity = 0;
+                    slime.isJumping = false;
+                }
+
+                if (Math.random() < 0.5 && runner % (power === "lila" ? 150 : 75) === 0) {
+                    hindernisse.push({
+                        y: GAME_HEIGHT - (power === "red" ? 270 : 300),
+                        x: GAME_WIDTH,
+                        width: power === "red" ? 30 : 60,
+                        height: power === "red" ? 30 : 60
+                    });
+                }
+
+                if (Math.random() < 0.001) {
+                    const bucketType = Math.random() < 0.33 ? "red" : Math.random() < 0.66 ? "blue" : "lila";
+                    buckets.push({
+                        x: GAME_WIDTH,
+                        y: GAME_HEIGHT - 300,
+                        width: 60,
+                        height: 60,
+                        type: bucketType
+                    });
+                }
+
+                if (checkCollision()) {
+                    gameOver();
+                    return;
+                }
+
+                checkBucketCollision();
+
+                runner++;
+                requestAnimationFrame(gameLoop);
             }
 
-            slime.velocity += slime.gravity;
-            slime.y += slime.velocity;
+            function gameOver() {
+                gameRunning = false;
+                gamePaused = false;
+                scoreText.textContent = `Punkte: ${points}`;
+                gameOverScreen.style.display = "flex";
+                scoreDisplay.style.display = "none";
+                homeButton.style.display = "none";
+                pauseButton.style.display = "none";
+                pauseMenu.style.display = "none";
+            }
 
-            if (slime.y > ground) {
+            function startGame() {
                 slime.y = ground;
                 slime.velocity = 0;
                 slime.isJumping = false;
+                slime.rotation = 0;
+                hindernisse = [];
+                buckets = [];
+                power = undefined;
+                points = 0;
+                runner = 0;
+                backgroundX = 0;
+
+                updateScore();
+
+                startScreen.style.display = "none";
+                gameOverScreen.style.display = "none";
+                pauseMenu.style.display = "none";
+
+                scoreDisplay.style.display = "block";
+                homeButton.style.display = "block";
+                pauseButton.style.display = "block";
+
+                gameRunning = true;
+                gamePaused = false;
+                gameLoop();
             }
 
-            if (Math.random() < 0.5 && runner % 75 === 0) {
-                hindernisse.push({
-                    y: GAME_HEIGHT - 100,
-                    x: GAME_WIDTH,
-                    width: 60,
-                    height: 60
-                });
+            function handleJump() {
+                if (!slime.isJumping && gameRunning && !gamePaused) {
+                    slime.velocity = slime.jumpPower;
+                    slime.isJumping = true;
+                }
             }
 
-            if (checkCollision()) {
-                gameOver();
-                return;
+            function updateScore() {
+                scoreDisplay.textContent = `Punkte: ${points}`;
             }
 
-            runner++;
-            requestAnimationFrame(gameLoop);
-        }
-
-        function gameOver() {
-            gameRunning = false;
-            scoreText.textContent = `Punkte: ${points}`;
-            gameOverScreen.style.display = "flex";
-        }
-
-        function startGame() {
-            slime.y = ground;
-            slime.velocity = 0;
-            slime.isJumping = false;
-            slime.rotation = 0;
-            hindernisse = [];
-            points = 0;
-            runner = 0;
-            backgroundX = 0;
-            
-            startScreen.style.display = "none";
-            gameOverScreen.style.display = "none";
-            gameRunning = true;
-            gameLoop();
-        }
-
-        function handleJump() {
-            if (!slime.isJumping && gameRunning) {
-                slime.velocity = slime.jumpPower;
-                slime.isJumping = true;
+            function pauseGame() {
+                gamePaused = true;
+                pauseMenu.style.display = "flex";
             }
-        }
 
-        window.addEventListener("keydown", (e) => {
-            if (e.code === "Space") {
+            function resumeGame() {
+                if (gamePaused) {
+                    gamePaused = false;
+                    pauseMenu.style.display = "none";
+                    gameLoop();
+                }
+            }
+
+            window.addEventListener("keydown", (e) => {
+                if (e.code === "Space") {
+                    handleJump();
+                    e.preventDefault();
+                } else if (e.code === "KeyP") {
+                    if (gameRunning && !gamePaused) {
+                        pauseGame();
+                    } else if (gamePaused) {
+                        resumeGame();
+                    }
+                    e.preventDefault();
+                }
+            });
+
+            canvas.addEventListener("touchstart", (e) => {
                 handleJump();
                 e.preventDefault();
-            }
-        });
+            });
 
-        canvas.addEventListener("touchstart", (e) => {
-            handleJump();
-            e.preventDefault();
-        });
+            startButton.addEventListener("click", startGame);
+            restartButton.addEventListener("click", startGame);
 
-        startButton.addEventListener("click", startGame);
-        restartButton.addEventListener("click", startGame);
-
-        startScreen.style.display = "flex";
-    </script>
-</body>
+            startScreen.style.display = "flex";
+        </script>
+    </body>
 </html>
