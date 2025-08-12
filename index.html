@@ -308,35 +308,17 @@
                 }
             }
 
-            let dashAvailable = false;
-            let dashCooldown = 0;
             let rainbowDoubleJumpAvailable = false;
 
-            // Dash-Funktion für Rainbow-Power
-            function dash() {
-                if (
-                    power === "rainbow" &&
-                    slime.isJumping &&
-                    dashAvailable &&
-                    dashCooldown <= 0 &&
-                    gameRunning &&
-                    !gamePaused
-                ) {
-                    slime.x += isMobile ? 300 : 150; // Dash-Distanz
-                    dashAvailable = false;
-                    dashCooldown = 30; // Cooldown in Frames (~0.5 Sek.)
-                }
-            }
-
-            // Dash-Reset bei Sprung
+            // Dash-Reset bei Sprung entfernen
             function handleJump() {
                 if (!slime.isJumping && gameRunning && !gamePaused) {
                     slime.velocity = slime.jumpPower;
                     slime.isJumping = true;
                     if (power === "rainbow") {
                         rainbowDoubleJumpAvailable = true;
-                        dashAvailable = true;
-                        dashCooldown = 0;
+                        // dashAvailable = true;
+                        // dashCooldown = 0;
                     }
                 } else if (
                     power === "rainbow" &&
@@ -436,8 +418,6 @@
                 }
 
                 checkBucketCollision();
-
-                if (dashCooldown > 0) dashCooldown--;
 
                 runner++;
                 requestAnimationFrame(gameLoop);
@@ -566,8 +546,8 @@
                     slime.isJumping = true;
                     if (power === "rainbow") {
                         rainbowDoubleJumpAvailable = true;
-                        dashAvailable = true;
-                        dashCooldown = 0;
+                        // dashAvailable = true;
+                        // dashCooldown = 0;
                     }
                 } else if (
                     power === "rainbow" &&
@@ -629,9 +609,6 @@
                 if (e.code === "Space") {
                     handleJump();
                     e.preventDefault();
-                } else if (e.code === "KeyY") {
-                    dash();
-                    e.preventDefault();
                 } else if (e.code === "KeyP") {
                     if (gameRunning && !gamePaused) {
                         pauseGame();
@@ -640,19 +617,6 @@
                     }
                     e.preventDefault();
                 }
-            });
-
-            // Handy: Doppeltipp für Dash
-            let lastTap = 0;
-            canvas.addEventListener("touchstart", (e) => {
-                const now = Date.now();
-                if (now - lastTap < 300) { // Doppeltipp erkannt
-                    dash();
-                } else {
-                    handleJump();
-                }
-                lastTap = now;
-                e.preventDefault();
             });
 
             startButton.addEventListener("click", startGame);
