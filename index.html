@@ -288,8 +288,9 @@
                         } else if (i.type.startsWith("happy_")) {
                             if (!startpowers.includes(i.type)) {
                                 startpowers.push(i.type);
-                                saveStartpowers(); // <--- Hinzugefügt
+                                saveStartpowers();
                             }
+                            // Power NICHT setzen!
                         } else {
                             power = i.type;
                         }
@@ -348,7 +349,9 @@
                 ctx.translate(slime.x + slime.width / 2, slime.y + slime.height / 2);
                 slime.rotation += power === "lila" ? 0.05 : power === "blue" ? 0.2 : 0.1;
                 ctx.rotate(slime.rotation);
-                ctx.drawImage(power ? slimeImgs[power] : slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
+                // Basis-Typ für Bild verwenden!
+                const slimeType = power && power.startsWith("happy_") ? power.replace("happy_", "") : power;
+                ctx.drawImage(slimeType ? slimeImgs[slimeType] : slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
                 ctx.restore();
 
                 for (let i of hindernisse) {
@@ -432,7 +435,9 @@
                     container.style.display = "flex";
                     startpowers.forEach(type => {
                         const img = document.createElement("img");
-                        img.src = slimeImgs[type] ? slimeImgs[type].src : bucketImgs[type.replace("happy_", "")]?.src;
+                        // Basis-Typ extrahieren
+                        const slimeType = type.startsWith("happy_") ? type.replace("happy_", "") : type;
+                        img.src = slimeImgs[slimeType] ? slimeImgs[slimeType].src : bucketImgs[slimeType]?.src;
                         img.alt = type;
                         img.style.width = "60px";
                         img.style.height = "60px";
@@ -441,7 +446,8 @@
                         img.style.background = "#111";
                         img.style.cursor = "pointer";
                         img.onclick = () => {
-                            selectedStartPower = type;
+                            // Immer Basis-Typ setzen!
+                            selectedStartPower = slimeType;
                             updatePowerSelect("powerSelectContainer");
                             updatePowerSelect("powerSelectContainerGameOver");
                         };
@@ -459,7 +465,8 @@
                 slime.rotation = 0;
                 hindernisse = [];
                 buckets = [];
-                power = selectedStartPower || undefined;
+                // Power korrekt setzen, immer Basis-Typ!
+                power = selectedStartPower ? (selectedStartPower.startsWith("happy_") ? selectedStartPower.replace("happy_", "") : selectedStartPower) : undefined;
                 points = 0;
                 runner = 0;
                 backgroundX = 0;
@@ -477,8 +484,6 @@
                 gameRunning = true;
                 gamePaused = false;
                 gameLoop();
-                dashAvailable = false;
-                dashCooldown = 0;
                 rainbowDoubleJumpAvailable = false;
             }
 
