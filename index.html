@@ -77,12 +77,14 @@
         <div id="startScreen">
             <h1>Slime Sprint</h1>
             <p>Drücke Leertaste oder tippe zum Springen!</p>
+            <div id="powerSelectContainer" style="display:none; flex-direction:row; gap:20px; margin-bottom:20px;"></div>
             <button id="startButton">Spiel starten</button>
         </div>
 
         <div id="gameOverScreen">
             <h1>Game Over!</h1>
             <p id="scoreText">Punkte: 0</p>
+            <div id="powerSelectContainerGameOver" style="display:none; flex-direction:row; gap:20px; margin-bottom:20px;"></div>
             <button id="restartButton">Nochmal spielen</button>
         </div>
 
@@ -149,20 +151,40 @@
             let slimeImgs = {
                 red: new Image(),
                 blue: new Image(),
-                lila: new Image()
+                lila: new Image(),
+                rainbow: new Image(),
+                yellow: new Image(),
             };
             slimeImgs.red.src = "assets/slimes/red.png";
             slimeImgs.blue.src = "assets/slimes/blue.png";
             slimeImgs.lila.src = "assets/slimes/lila.png";
+            slimeImgs.rainbow.src = "assets/slimes/rainbow.png";
+            slimeImgs.yellow.src = "assets/slimes/yellow.png";
 
             let bucketImgs = {
                 red: new Image(),
                 blue: new Image(),
-                lila: new Image()
+                lila: new Image(),
+                green: new Image(),
+                yellow: new Image(),
+                rainbow: new Image(),
+                happy_red: new Image(),
+                happy_blue: new Image(),
+                happy_lila: new Image(),
+                happy_rainbow: new Image(),
+                happy_yellow: new Image()
             };
             bucketImgs.red.src = "assets/buckets/red.png";
             bucketImgs.blue.src = "assets/buckets/blue.png";
             bucketImgs.lila.src = "assets/buckets/lila.png";
+            bucketImgs.green.src = "assets/buckets/green.png";
+            bucketImgs.rainbow.src = "assets/buckets/rainbow.png";
+            bucketImgs.yellow.src = "assets/buckets/yellow.png";
+            bucketImgs.happy_red.src = "assets/buckets/happy_red.png";
+            bucketImgs.happy_blue.src = "assets/buckets/happy_blue.png";
+            bucketImgs.happy_lila.src = "assets/buckets/happy_lila.png";
+            bucketImgs.happy_rainbow.src = "assets/buckets/happy_rainbow.png";
+            bucketImgs.happy_yellow.src = "assets/buckets/happy_yellow.png";
 
             let hindernisImgs = {
                 cactus: new Image(),
@@ -176,6 +198,7 @@
             let gameRunning = false;
             let gamePaused = false;
             let power = undefined;
+            let startpowers = [];
 
             let slimeImage = new Image();
             slimeImage.src = "assets/slime.png";
@@ -202,7 +225,7 @@
                     scoreDisplay.style.display = "none";
                     homeButton.style.display = "none";
                     pauseButton.style.display = "none";
-                    startScreen.style.display = "flex";
+                    showStartScreen();
                     gameOverScreen.style.display = "none";
                 }
             });
@@ -224,7 +247,7 @@
                 scoreDisplay.style.display = "none";
                 homeButton.style.display = "none";
                 pauseButton.style.display = "none";
-                startScreen.style.display = "flex";
+                showStartScreen();
                 gameOverScreen.style.display = "none";
             });
 
@@ -258,7 +281,15 @@
                     const distanceY = slimeCenterY - closestY;
                     const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
                     if (distance < slimeRadius) {
-                        power = i.type;
+                        if (i.type === "green") {
+                            power = undefined;
+                        } else if (i.type.startsWith("happy_")) {
+                            if (!startpowers.includes(i.type)) {
+                                startpowers.push(i.type);
+                            }
+                        } else {
+                            power = i.type;
+                        }
                         buckets.splice(buckets.indexOf(i), 1);
                         return true;
                     }
@@ -274,6 +305,48 @@
                 }
             }
 
+            let dashAvailable = false;
+            let dashCooldown = 0;
+            let rainbowDoubleJumpAvailable = false;
+
+            // Dash-Funktion für Rainbow-Power
+            function dash() {
+                if (
+                    power === "rainbow" &&
+                    slime.isJumping &&
+                    dashAvailable &&
+                    dashCooldown <= 0 &&
+                    gameRunning &&
+                    !gamePaused
+                ) {
+                    slime.x += isMobile ? 300 : 150; // Dash-Distanz
+                    dashAvailable = false;
+                    dashCooldown = 30; // Cooldown in Frames (~0.5 Sek.)
+                }
+            }
+
+            // Dash-Reset bei Sprung
+            function handleJump() {
+                if (!slime.isJumping && gameRunning && !gamePaused) {
+                    slime.velocity = slime.jumpPower;
+                    slime.isJumping = true;
+                    if (power === "rainbow") {
+                        rainbowDoubleJumpAvailable = true;
+                        dashAvailable = true;
+                        dashCooldown = 0;
+                    }
+                } else if (
+                    power === "rainbow" &&
+                    rainbowDoubleJumpAvailable &&
+                    gameRunning &&
+                    !gamePaused
+                ) {
+                    slime.velocity = slime.jumpPower;
+                    rainbowDoubleJumpAvailable = false;
+                }
+            }
+
+            // Dash-Cooldown im Game-Loop
             function gameLoop() {
                 if (!gameRunning || gamePaused) return;
                 
@@ -288,7 +361,7 @@
 
                 ctx.save();
                 ctx.translate(slime.x + slime.width / 2, slime.y + slime.height / 2);
-                slime.rotation += power === "lila" ? 0.05 : 0.1;
+                slime.rotation += power === "lila" ? 0.05 : power === "blue" ? 0.2 : 0.1;
                 ctx.rotate(slime.rotation);
                 ctx.drawImage(power ? slimeImgs[power] : slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
                 ctx.restore();
@@ -317,6 +390,7 @@
                     slime.y = ground;
                     slime.velocity = 0;
                     slime.isJumping = false;
+                    rainbowDoubleJumpAvailable = false;
                 }
 
                 if (Math.random() < 0.5 && runner % (power === "lila" ? 150 : 75) === 0) {
@@ -330,7 +404,20 @@
                 }
 
                 if (Math.random() < 0.001) {
-                    const bucketType = new Array("red", "blue", "lila")[Math.floor(Math.random() * 3)];
+                    let bucketType = new Array("red", "blue", "lila")[Math.floor(Math.random() * 3)];
+                    if (Math.random() < 0.01) {
+                        bucketType = "rainbow"
+                    }
+                    if (Math.random() < 0.01) {
+                        bucketType = "happy_" + bucketType;
+                        if (Math.random() < 0.01) {
+                            bucketType = "yellow";
+                            if (Math.random() < 0.001) {
+                                bucketType = "happy_yellow";
+                            }
+                        }
+                    }
+                    if (bucketType === power) bucketType = "green"
                     buckets.push({
                         x: GAME_WIDTH,
                         y: GAME_HEIGHT - (power === "red" ? (isMobile ? 250 : 270) : 300)  - (isMobile ? 45 : 0),
@@ -347,19 +434,39 @@
 
                 checkBucketCollision();
 
+                if (dashCooldown > 0) dashCooldown--;
+
                 runner++;
                 requestAnimationFrame(gameLoop);
             }
 
-            function gameOver() {
-                gameRunning = false;
-                gamePaused = false;
-                scoreText.textContent = `Punkte: ${points}`;
-                gameOverScreen.style.display = "flex";
-                scoreDisplay.style.display = "none";
-                homeButton.style.display = "none";
-                pauseButton.style.display = "none";
-                pauseMenu.style.display = "none";
+            let selectedStartPower = undefined;
+
+            function updatePowerSelect(containerId) {
+                const container = $(containerId);
+                container.innerHTML = "";
+                if (startpowers.length > 0) {
+                    container.style.display = "flex";
+                    startpowers.forEach(type => {
+                        const img = document.createElement("img");
+                        img.src = slimeImgs[type] ? slimeImgs[type].src : bucketImgs[type.replace("happy_", "")]?.src;
+                        img.alt = type;
+                        img.style.width = "60px";
+                        img.style.height = "60px";
+                        img.style.border = selectedStartPower === type ? "4px solid #4caf50" : "2px solid #222";
+                        img.style.borderRadius = "50%";
+                        img.style.background = "#111";
+                        img.style.cursor = "pointer";
+                        img.onclick = () => {
+                            selectedStartPower = type;
+                            updatePowerSelect("powerSelectContainer");
+                            updatePowerSelect("powerSelectContainerGameOver");
+                        };
+                        container.appendChild(img);
+                    });
+                } else {
+                    container.style.display = "none";
+                }
             }
 
             function startGame() {
@@ -369,7 +476,7 @@
                 slime.rotation = 0;
                 hindernisse = [];
                 buckets = [];
-                power = undefined;
+                power = selectedStartPower || undefined;
                 points = 0;
                 runner = 0;
                 backgroundX = 0;
@@ -387,12 +494,78 @@
                 gameRunning = true;
                 gamePaused = false;
                 gameLoop();
+                dashAvailable = false;
+                dashCooldown = 0;
+                rainbowDoubleJumpAvailable = false;
             }
+
+            function showStartScreen() {
+                startScreen.style.display = "flex";
+                updatePowerSelect("powerSelectContainer");
+            }
+
+            function showGameOverScreen() {
+                gameOverScreen.style.display = "flex";
+                updatePowerSelect("powerSelectContainerGameOver");
+            }
+
+            function gameOver() {
+                gameRunning = false;
+                gamePaused = false;
+                scoreText.textContent = `Punkte: ${points}`;
+                scoreDisplay.style.display = "none";
+                homeButton.style.display = "none";
+                pauseButton.style.display = "none";
+                pauseMenu.style.display = "none";
+                showGameOverScreen();
+            }
+
+            homeButton.addEventListener("click", () => {
+                if (gameRunning || gamePaused) {
+                    gameRunning = false;
+                    gamePaused = false;
+                    pauseMenu.style.display = "none";
+                    scoreDisplay.style.display = "none";
+                    homeButton.style.display = "none";
+                    pauseButton.style.display = "none";
+                    showStartScreen();
+                    gameOverScreen.style.display = "none";
+                }
+            });
+
+            pauseHomeButton.addEventListener("click", () => {
+                pauseMenu.style.display = "none";
+                gamePaused = false;
+                gameRunning = false;
+                scoreDisplay.style.display = "none";
+                homeButton.style.display = "none";
+                pauseButton.style.display = "none";
+                showStartScreen();
+                gameOverScreen.style.display = "none";
+            });
+
+            startButton.addEventListener("click", startGame);
+            restartButton.addEventListener("click", startGame);
+
+            showStartScreen();
 
             function handleJump() {
                 if (!slime.isJumping && gameRunning && !gamePaused) {
                     slime.velocity = slime.jumpPower;
                     slime.isJumping = true;
+                    if (power === "rainbow") {
+                        rainbowDoubleJumpAvailable = true;
+                        dashAvailable = true;
+                        dashCooldown = 0;
+                    }
+                } else if (
+                    power === "rainbow" &&
+                    rainbowDoubleJumpAvailable &&
+                    gameRunning &&
+                    !gamePaused
+                ) {
+                    slime.velocity = slime.jumpPower;
+                    rainbowDoubleJumpAvailable = false;
                 }
             }
 
@@ -417,6 +590,9 @@
                 if (e.code === "Space") {
                     handleJump();
                     e.preventDefault();
+                } else if (e.code === "KeyY") {
+                    dash();
+                    e.preventDefault();
                 } else if (e.code === "KeyP") {
                     if (gameRunning && !gamePaused) {
                         pauseGame();
@@ -427,15 +603,23 @@
                 }
             });
 
+            // Handy: Doppeltipp für Dash
+            let lastTap = 0;
             canvas.addEventListener("touchstart", (e) => {
-                handleJump();
+                const now = Date.now();
+                if (now - lastTap < 300) { // Doppeltipp erkannt
+                    dash();
+                } else {
+                    handleJump();
+                }
+                lastTap = now;
                 e.preventDefault();
             });
 
             startButton.addEventListener("click", startGame);
             restartButton.addEventListener("click", startGame);
 
-            startScreen.style.display = "flex";
+            showStartScreen();
         </script>
     </body>
 </html>
