@@ -358,7 +358,7 @@
                 for (let i = hindernisse.length - 1; i >= 0; i--) {
                     if (hindernisse[i].x + hindernisse[i].width < 0) {
                         hindernisse.splice(i, 1);
-                        points += (power === "yellow" ? 5 : 1);
+                        points += (power === "yellow" ? 5 : 1)
                         updateScore();
                     }
                 }
@@ -617,6 +617,11 @@
                     }
                     e.preventDefault();
                 }
+            });
+
+            canvas.addEventListener("touchstart", (e) => {
+                handleJump();
+                e.preventDefault();
             });
 
             startButton.addEventListener("click", startGame);
