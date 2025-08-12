@@ -208,6 +208,8 @@
             backgroundImg.src= "assets/background.png";
             let backgroundX = 0;
 
+            let highscore = 0;
+
             fullscreenButton.addEventListener("click", openFullscreen);
 
             document.addEventListener("fullscreenchange", () => {
@@ -286,6 +288,7 @@
                         } else if (i.type.startsWith("happy_")) {
                             if (!startpowers.includes(i.type)) {
                                 startpowers.push(i.type);
+                                saveStartpowers(); // <--- Hinzugefügt
                             }
                         } else {
                             power = i.type;
@@ -500,11 +503,14 @@
             }
 
             function showStartScreen() {
+                loadStartpowers(); // <--- Hinzugefügt
                 startScreen.style.display = "flex";
                 updatePowerSelect("powerSelectContainer");
             }
 
             function showGameOverScreen() {
+                loadStartpowers();
+                loadHighscore();
                 gameOverScreen.style.display = "flex";
                 updatePowerSelect("powerSelectContainerGameOver");
             }
@@ -512,7 +518,12 @@
             function gameOver() {
                 gameRunning = false;
                 gamePaused = false;
-                scoreText.textContent = `Punkte: ${points}`;
+                // Highscore prüfen und ggf. aktualisieren
+                if (points > highscore) {
+                    highscore = points;
+                    saveHighscore();
+                }
+                scoreText.textContent = `Punkte: ${points}\nHighscore: ${highscore}`;
                 scoreDisplay.style.display = "none";
                 homeButton.style.display = "none";
                 pauseButton.style.display = "none";
@@ -586,6 +597,34 @@
                 }
             }
 
+            // LocalStorage laden
+            function loadStartpowers() {
+                const saved = localStorage.getItem("slimeSprintStartpowers");
+                if (saved) {
+                    try {
+                        startpowers = JSON.parse(saved);
+                    } catch (e) {
+                        startpowers = [];
+                    }
+                }
+            }
+
+            // LocalStorage speichern
+            function saveStartpowers() {
+                localStorage.setItem("slimeSprintStartpowers", JSON.stringify(startpowers));
+            }
+
+            // Highscore aus LocalStorage laden
+            function loadHighscore() {
+                const saved = localStorage.getItem("slimeSprintHighscore");
+                highscore = saved ? parseInt(saved) : 0;
+            }
+            
+            // Highscore speichern
+            function saveHighscore() {
+                localStorage.setItem("slimeSprintHighscore", highscore);
+            }
+
             window.addEventListener("keydown", (e) => {
                 if (e.code === "Space") {
                     handleJump();
@@ -618,6 +657,10 @@
 
             startButton.addEventListener("click", startGame);
             restartButton.addEventListener("click", startGame);
+
+            // Initial laden beim Start
+loadStartpowers();
+loadHighscore();
 
             showStartScreen();
         </script>
