@@ -69,6 +69,19 @@
             #pauseButton {
                 right: 10px;
             }
+            #timeSpeedDisplay {
+                position: fixed;
+                left: 10px;
+                bottom: 10px;
+                color: white;
+                background: rgba(0,0,0,0.5);
+                padding: 8px 16px;
+                border-radius: 8px;
+                font-family: Arial, sans-serif;
+                font-size: 20px;
+                z-index: 1002;
+                display: none;
+            }
         </style>
     </head>
     <body>
@@ -100,6 +113,10 @@
         <button id="pauseButton" style="display:none;">Pause</button>
 
         <div id="scoreDisplay" style="display:none;">Punkte: 0</div>
+
+        <div id="timeSpeedDisplay" style="position:fixed; left:10px; bottom:10px; color:white; background:rgba(0,0,0,0.5); padding:8px 16px; border-radius:8px; font-family:Arial,sans-serif; font-size:20px; z-index:1002; display:none;">
+            TimeSpeed: 1.0x
+        </div>
 
         <script>
 
@@ -154,12 +171,14 @@
                 lila: new Image(),
                 rainbow: new Image(),
                 yellow: new Image(),
+                overpower: new Image()
             };
             slimeImgs.red.src = "assets/slimes/red.png";
             slimeImgs.blue.src = "assets/slimes/blue.png";
             slimeImgs.lila.src = "assets/slimes/lila.png";
             slimeImgs.rainbow.src = "assets/slimes/rainbow.png";
             slimeImgs.yellow.src = "assets/slimes/yellow.png";
+            slimeImgs.overpower.src = "assets/slimes/overpower.png";
 
             let bucketImgs = {
                 red: new Image(),
@@ -168,11 +187,13 @@
                 green: new Image(),
                 yellow: new Image(),
                 rainbow: new Image(),
+                overpower: new Image(),
                 happy_red: new Image(),
                 happy_blue: new Image(),
                 happy_lila: new Image(),
                 happy_rainbow: new Image(),
-                happy_yellow: new Image()
+                happy_yellow: new Image(),
+                happy_overpower: new Image(),
             };
             bucketImgs.red.src = "assets/buckets/red.png";
             bucketImgs.blue.src = "assets/buckets/blue.png";
@@ -180,11 +201,13 @@
             bucketImgs.green.src = "assets/buckets/green.png";
             bucketImgs.rainbow.src = "assets/buckets/rainbow.png";
             bucketImgs.yellow.src = "assets/buckets/yellow.png";
+            bucketImgs.overpower.src = "assets/buckets/overpower.png";
             bucketImgs.happy_red.src = "assets/buckets/happy_red.png";
             bucketImgs.happy_blue.src = "assets/buckets/happy_blue.png";
             bucketImgs.happy_lila.src = "assets/buckets/happy_lila.png";
             bucketImgs.happy_rainbow.src = "assets/buckets/happy_rainbow.png";
             bucketImgs.happy_yellow.src = "assets/buckets/happy_yellow.png";
+            bucketImgs.happy_overpower.src = "assets/buckets/happy_overpower.png";
 
             let hindernisImgs = {
                 cactus: new Image(),
@@ -227,8 +250,12 @@
                     scoreDisplay.style.display = "none";
                     homeButton.style.display = "none";
                     pauseButton.style.display = "none";
+                    power = undefined; // Power zurücksetzen
+                    selectedStartPower = undefined; // Auswahl zurücksetzen
+                    overpowerTimeFactor = 1; // Zeitfaktor zurücksetzen
                     showStartScreen();
                     gameOverScreen.style.display = "none";
+                    updateTimeSpeedDisplay(); // Anzeige ausblenden
                 }
             });
 
@@ -240,17 +267,6 @@
 
             resumeButton.addEventListener("click", () => {
                 resumeGame();
-            });
-
-            pauseHomeButton.addEventListener("click", () => {
-                pauseMenu.style.display = "none";
-                gamePaused = false;
-                gameRunning = false;
-                scoreDisplay.style.display = "none";
-                homeButton.style.display = "none";
-                pauseButton.style.display = "none";
-                showStartScreen();
-                gameOverScreen.style.display = "none";
             });
 
             function checkCollision() {
@@ -285,14 +301,17 @@
                     if (distance < slimeRadius) {
                         if (i.type === "green") {
                             power = undefined;
+                            updateTimeSpeedDisplay();
                         } else if (i.type.startsWith("happy_")) {
                             if (!startpowers.includes(i.type)) {
                                 startpowers.push(i.type);
                                 saveStartpowers();
                             }
                             // Power NICHT setzen!
+                            updateTimeSpeedDisplay();
                         } else {
                             power = i.type;
+                            updateTimeSpeedDisplay();
                         }
                         buckets.splice(buckets.indexOf(i), 1);
                         return true;
@@ -310,16 +329,24 @@
             }
 
             let rainbowDoubleJumpAvailable = false;
+            let overpowerJumpsLeft = 0;
+            let overpowerTimeFactor = 1; // Zeitfaktor für overpower
 
-            // Dash-Reset bei Sprung entfernen
             function handleJump() {
-                if (!slime.isJumping && gameRunning && !gamePaused) {
+                if (power === "overpower" && gameRunning && !gamePaused) {
+                    if (!slime.isJumping) {
+                        slime.velocity = slime.jumpPower;
+                        slime.isJumping = true;
+                        overpowerJumpsLeft = 2;
+                    } else if (overpowerJumpsLeft > 0) {
+                        slime.velocity = slime.jumpPower;
+                        overpowerJumpsLeft--;
+                    }
+                } else if (!slime.isJumping && gameRunning && !gamePaused) {
                     slime.velocity = slime.jumpPower;
                     slime.isJumping = true;
                     if (power === "rainbow") {
                         rainbowDoubleJumpAvailable = true;
-                        // dashAvailable = true;
-                        // dashCooldown = 0;
                     }
                 } else if (
                     power === "rainbow" &&
@@ -335,27 +362,32 @@
             // Dash-Cooldown im Game-Loop
             function gameLoop() {
                 if (!gameRunning || gamePaused) return;
-                
+
+                // Zeitfaktor bestimmen
+                let timeFactor = (power === "overpower") ? overpowerTimeFactor : 1;
+
                 ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-                backgroundX -= (power === "lila" ? 2 : power === "blue" ? 8 : 4) * (isMobile ? 2 : 1);
+                // Hintergrundbewegung
+                backgroundX -= ((power === "lila" ? 2 : power === "blue" ? 8 : 4) * (isMobile ? 2 : 1)) * timeFactor;
                 ctx.drawImage(backgroundImg, backgroundX, 0, GAME_WIDTH, GAME_HEIGHT);
                 ctx.drawImage(backgroundImg, backgroundX + GAME_WIDTH, 0, GAME_WIDTH, GAME_HEIGHT);
                 if (backgroundX <= -GAME_WIDTH) {
                     backgroundX = 0;
                 }
 
+                // Slime-Rotation
                 ctx.save();
                 ctx.translate(slime.x + slime.width / 2, slime.y + slime.height / 2);
-                slime.rotation += power === "lila" ? 0.05 : power === "blue" ? 0.2 : 0.1;
+                slime.rotation += (power === "lila" ? 0.05 : power === "blue" ? 0.2 : 0.1) * timeFactor;
                 ctx.rotate(slime.rotation);
-                // Basis-Typ für Bild verwenden!
                 const slimeType = power && power.startsWith("happy_") ? power.replace("happy_", "") : power;
                 ctx.drawImage(slimeType ? slimeImgs[slimeType] : slimeImage, -slime.width / 2, -slime.height / 2, slime.width, slime.height);
                 ctx.restore();
 
+                // Hindernisse bewegen
                 for (let i of hindernisse) {
-                    i.x -= (power === "lila" ? 2 : power === "blue" ? 8 : 4) * (isMobile ? 2 : 1);
+                    i.x -= ((power === "lila" ? 2 : power === "blue" ? 8 : 4) * (isMobile ? 2 : 1)) * timeFactor;
                     ctx.drawImage(i.type ? hindernisImgs[i.type] : hindernisImg, i.x, i.y, i.width, i.height);
                 }
                 for (let i = hindernisse.length - 1; i >= 0; i--) {
@@ -366,51 +398,75 @@
                     }
                 }
 
-                for (i of buckets) {
+                // Buckets bewegen
+                for (let i of buckets) {
                     ctx.drawImage(bucketImgs[i.type], i.x, i.y, i.width, i.height);
-                    i.x -= (power === "lila" ? 2 : power === "blue" ? 8 : 4) * (isMobile ? 2 : 1);
+                    i.x -= ((power === "lila" ? 2 : power === "blue" ? 8 : 4) * (isMobile ? 2 : 1)) * timeFactor;
+                }
+                for (let i = buckets.length - 1; i >= 0; i--) {
+                    if (buckets[i].x + buckets[i].width < 0) {
+                        buckets.splice(i, 1);
+                    }
                 }
 
-                slime.velocity += slime.gravity * (power === "lila" ? 0.5 : power === "blue" ? 2 : 1);
-                slime.y += slime.velocity * (power === "lila" ? 0.5 : power === "blue" ? 2 : 1);
+                // Slime-Physik (Gravity und Velocity)
+                slime.velocity += slime.gravity * (power === "lila" ? 0.5 : power === "blue" ? 2 : 1) * timeFactor;
+                slime.y += slime.velocity * (power === "lila" ? 0.5 : power === "blue" ? 2 : 1) * timeFactor;
 
                 if (slime.y > ground) {
                     slime.y = ground;
                     slime.velocity = 0;
                     slime.isJumping = false;
                     rainbowDoubleJumpAvailable = false;
+                    overpowerJumpsLeft = 0;
                 }
 
-                if (Math.random() < 0.5 && runner % (power === "lila" ? 150 : 75) === 0) {
+                let spawnMod = (power === "lila" ? 150 : 75);
+                if (power === "overpower") {
+                    spawnMod = Math.max(1, Math.round(spawnMod / overpowerTimeFactor));
+                }
+                if (Math.random() < 0.5 && runner % spawnMod === 0) {
                     hindernisse.push({
-                        y: GAME_HEIGHT - (power === "red" ? (isMobile ? 250 : 270) : 300) - (isMobile ? 45 : 0),
+                        y: GAME_HEIGHT - (power === "red" || power === "overpower" ? (isMobile ? 250 : 270) : 300) - (isMobile ? 45 : 0),
                         x: GAME_WIDTH,
-                        width: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
-                        height: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
+                        width: (power === "red" || power === "overpower" ? 30 : 60) * (isMobile ? 2 : 1),
+                        height: (power === "red" || power === "overpower" ? 30 : 60) * (isMobile ? 2 : 1),
                         type: Math.random() < 0.3 ? "cactus" : undefined
                     });
                 }
 
                 if (Math.random() < 0.001) {
-                    let bucketType = new Array("red", "blue", "lila")[Math.floor(Math.random() * 3)];
-                    if (Math.random() < 0.01) {
-                        bucketType = "rainbow"
-                    }
-                    if (Math.random() < 0.01) {
-                        bucketType = "happy_" + bucketType;
+                    let bucketType;
+                    // overpower bucket mit 1 / 27029702700 Wahrscheinlichkeit
+                    if (Math.random() < 1 / 27029702700) {
+                        // 1% Chance für happy_overpower
                         if (Math.random() < 0.01) {
-                            bucketType = "yellow";
-                            if (Math.random() < 0.001) {
-                                bucketType = "happy_yellow";
+                            bucketType = "happy_overpower";
+                        } else {
+                            bucketType = "overpower";
+                        }
+                    } else {
+                        // Standard-Buckets wie gehabt
+                        bucketType = new Array("red", "blue", "lila")[Math.floor(Math.random() * 3)];
+                        if (Math.random() < 0.01) {
+                            bucketType = "rainbow"
+                        }
+                        if (Math.random() < 0.01) {
+                            bucketType = "happy_" + bucketType;
+                            if (Math.random() < 0.01) {
+                                bucketType = "yellow";
+                                if (Math.random() < 0.001) {
+                                    bucketType = "happy_yellow";
+                                }
                             }
                         }
                     }
                     if (bucketType === power) bucketType = "green"
                     buckets.push({
                         x: GAME_WIDTH,
-                        y: GAME_HEIGHT - (power === "red" ? (isMobile ? 250 : 270) : 300)  - (isMobile ? 45 : 0),
-                        width: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
-                        height: (power === "red" ? 30 : 60) * (isMobile ? 2 : 1),
+                        y: GAME_HEIGHT - (power === "red" || power === "overpower" ? (isMobile ? 250 : 270) : 300)  - (isMobile ? 45 : 0),
+                        width: (power === "red" || power === "overpower" ? 30 : 60) * (isMobile ? 2 : 1),
+                        height: (power === "red" || power === "overpower" ? 30 : 60) * (isMobile ? 2 : 1),
                         type: bucketType
                     });
                 }
@@ -423,6 +479,7 @@
                 checkBucketCollision();
 
                 runner++;
+                if (power === "overpower") updateTimeSpeedDisplay();
                 requestAnimationFrame(gameLoop);
             }
 
@@ -441,20 +498,22 @@
                         img.alt = type;
                         img.style.width = "60px";
                         img.style.height = "60px";
-                        img.style.border = selectedStartPower === type ? "4px solid #4caf50" : "2px solid #222";
+                        img.style.border = selectedStartPower === slimeType ? "4px solid #4caf50" : "2px solid #222";
                         img.style.borderRadius = "50%";
                         img.style.background = "#111";
                         img.style.cursor = "pointer";
                         img.onclick = () => {
-                            // Immer Basis-Typ setzen!
-                            selectedStartPower = slimeType;
+                            // Abwählen, wenn bereits ausgewählt
+                            if (selectedStartPower === slimeType) {
+                                selectedStartPower = undefined;
+                            } else {
+                                selectedStartPower = slimeType;
+                            }
                             updatePowerSelect("powerSelectContainer");
                             updatePowerSelect("powerSelectContainerGameOver");
                         };
                         container.appendChild(img);
                     });
-                } else {
-                    container.style.display = "none";
                 }
             }
 
@@ -465,11 +524,12 @@
                 slime.rotation = 0;
                 hindernisse = [];
                 buckets = [];
-                // Power korrekt setzen, immer Basis-Typ!
                 power = selectedStartPower ? (selectedStartPower.startsWith("happy_") ? selectedStartPower.replace("happy_", "") : selectedStartPower) : undefined;
                 points = 0;
                 runner = 0;
                 backgroundX = 0;
+                overpowerJumpsLeft = 0; // Reset bei Spielstart
+                overpowerTimeFactor = 1; // Reset bei Spielstart
 
                 updateScore();
 
@@ -514,56 +574,13 @@
                 pauseButton.style.display = "none";
                 pauseMenu.style.display = "none";
                 showGameOverScreen();
+                updateTimeSpeedDisplay(); // <--- HIER HINZUFÜGEN
             }
-
-            homeButton.addEventListener("click", () => {
-                if (gameRunning || gamePaused) {
-                    gameRunning = false;
-                    gamePaused = false;
-                    pauseMenu.style.display = "none";
-                    scoreDisplay.style.display = "none";
-                    homeButton.style.display = "none";
-                    pauseButton.style.display = "none";
-                    showStartScreen();
-                    gameOverScreen.style.display = "none";
-                }
-            });
-
-            pauseHomeButton.addEventListener("click", () => {
-                pauseMenu.style.display = "none";
-                gamePaused = false;
-                gameRunning = false;
-                scoreDisplay.style.display = "none";
-                homeButton.style.display = "none";
-                pauseButton.style.display = "none";
-                showStartScreen();
-                gameOverScreen.style.display = "none";
-            });
 
             startButton.addEventListener("click", startGame);
             restartButton.addEventListener("click", startGame);
 
             showStartScreen();
-
-            function handleJump() {
-                if (!slime.isJumping && gameRunning && !gamePaused) {
-                    slime.velocity = slime.jumpPower;
-                    slime.isJumping = true;
-                    if (power === "rainbow") {
-                        rainbowDoubleJumpAvailable = true;
-                        // dashAvailable = true;
-                        // dashCooldown = 0;
-                    }
-                } else if (
-                    power === "rainbow" &&
-                    rainbowDoubleJumpAvailable &&
-                    gameRunning &&
-                    !gamePaused
-                ) {
-                    slime.velocity = slime.jumpPower;
-                    rainbowDoubleJumpAvailable = false;
-                }
-            }
 
             function updateScore() {
                 scoreDisplay.textContent = `Punkte: ${points}`;
@@ -621,6 +638,12 @@
                         resumeGame();
                     }
                     e.preventDefault();
+                } else if (power === "overpower" && gameRunning && !gamePaused) {
+                    if (e.code === "KeyG" && overpowerTimeFactor > 0.1) {
+                        overpowerTimeFactor -= 0.1;
+                    } else if (e.code === "KeyH") {
+                        overpowerTimeFactor += 0.1;
+                    }
                 }
             });
 
@@ -633,10 +656,20 @@
             restartButton.addEventListener("click", startGame);
 
             // Initial laden beim Start
-loadStartpowers();
-loadHighscore();
+            loadStartpowers();
+            loadHighscore();
 
             showStartScreen();
+
+            function updateTimeSpeedDisplay() {
+                const el = document.getElementById("timeSpeedDisplay");
+                if (power === "overpower" && gameRunning && !gamePaused) {
+                    el.style.display = "block";
+                    el.textContent = `TimeSpeed: ${overpowerTimeFactor.toFixed(2)}x`;
+                } else {
+                    el.style.display = "none";
+                }
+            }
         </script>
     </body>
 </html>
