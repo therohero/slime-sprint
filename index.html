@@ -437,13 +437,19 @@
 
                 if (Math.random() < 0.001) {
                     let bucketType;
-                    // overpower bucket mit 1 / 27029702700 Wahrscheinlichkeit
-                    if (Math.random() < 1 / 27029702700) {
-                        // 1% Chance für happy_overpower
-                        if (Math.random() < 0.01) {
-                            bucketType = "happy_overpower";
-                        } else {
-                            bucketType = "overpower";
+                    // overpower bucket mit 1 / 5000 Wahrscheinlichkeit
+                    if (Math.random() < 1 / 5000) {
+                        // Überprüfen, ob alle anderen Powers als happy gesammelt wurden
+                        const requiredHappy = ["happy_red", "happy_blue", "happy_lila", "happy_rainbow", "happy_yellow"];
+                        const hasAllHappy = requiredHappy.every(h => startpowers.includes(h));
+                        
+                        if (hasAllHappy) {
+                            // 1% Chance für happy_overpower, aber nur wenn aktuelle Punkte > Highscore
+                            if (Math.random() < 0.01 && points > highscore) {
+                                bucketType = "happy_overpower";
+                            } else {
+                                bucketType = "overpower";
+                            }
                         }
                     } else {
                         // Standard-Buckets wie gehabt
@@ -455,7 +461,7 @@
                             bucketType = "happy_" + bucketType;
                             if (Math.random() < 0.01) {
                                 bucketType = "yellow";
-                                if (Math.random() < 0.001) {
+                                if (Math.random() < 0.01) {
                                     bucketType = "happy_yellow";
                                 }
                             }
